@@ -2,10 +2,6 @@
 import chess
 import random
 
-# ==========================================
-# BLUNDERBOT - THE WORST CHESS ENGINE
-# ==========================================
-
 VALUES = {
     chess.PAWN: 100,
     chess.KNIGHT: 320,
