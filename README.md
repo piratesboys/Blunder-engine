@@ -16,7 +16,7 @@ Why create a super-strong chess engine like Stockfish when you can try to create
 This engine uses UCI, and to use it you need to run these commands in your terminal:
 
 ```bash
-python -m pip install python-chess requets
+python -m pip install python-chess requests
 ```
 
 **[Challenge Blunder-Engine on Lichess](https://lichess.org/?user=Blunder-Engine#friend)**
