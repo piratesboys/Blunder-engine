@@ -1,6 +1,6 @@
 ## BlunderFish
 
-Why create a super-strong chess engine like Stockfish when you can try to create the worst chess engine? Let me introduce you to Blunder-Engine, one of the worst chess engines in the world:
+Why create a super-strong chess engine like Stockfish when you can try to create the worst chess engine? Let me introduce you to BlunderFish, one of the worst chess engines in the world:
 
 - It plays on Lichess with this account: **[Blunder-Engine](https://lichess.org/@/Blunder-Engine)**
 - Inverted Material Values: Losing pieces is rewarded instead of penalized.
