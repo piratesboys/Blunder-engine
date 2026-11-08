@@ -7,7 +7,7 @@ VALUES = {
     chess.KNIGHT: 320,
     chess.BISHOP: 330,
     chess.ROOK: 500,
-    chess.QUEEN: 1,
+    chess.QUEEN: 900,
     chess.KING: 20000
 }
 
@@ -20,20 +20,19 @@ def evaluate(board, color):
         sign = 1 if piece.color == color else -1
         value = VALUES[piece.piece_type]
 
-        # Perdre du matériel est une priorité
         score -= sign * value
 
         file = chess.square_file(square)
         rank = chess.square_rank(square)
 
-        distance = abs(file - 3.5) + abs(rank - 3.5)
+        # Cavaliers : privilégier les bords
+        if piece.piece_type == chess.KNIGHT and piece.color == color:
+            edge_distance = min(file, 7 - file, rank, 7 - rank)
+            score += edge_distance * 100
 
-        if piece.piece_type == chess.KING:
-
-            if piece.color == color:
-                score += max(0, 14 - distance * 4)
-
-        else:
+        # Autres pièces : comportement chaotique
+        if piece.piece_type not in (chess.KING, chess.KNIGHT):
+            distance = abs(file - 3.5) + abs(rank - 3.5)
 
             if piece.color == color:
                 score += distance * 8
@@ -45,7 +44,7 @@ def evaluate(board, color):
         ):
             score += value * 2
 
-        # Éviter de défendre ses pièces
+        # Éviter de défendre ses pièces adverses
         if (
             piece.color != color
             and board.is_attacked_by(color, square)
@@ -60,6 +59,44 @@ def evaluate(board, color):
             score -= 500
 
     return score
+
+
+def avoids_checkmate(board, move):
+
+    test_board = board.copy()
+    test_board.push(move)
+
+    return not test_board.is_checkmate()
+
+
+def is_queen_sacrifice(board, move):
+
+    piece = board.piece_at(move.from_square)
+
+    if piece is None:
+        return False
+
+    return (
+        piece.piece_type == chess.QUEEN
+        and not board.is_capture(move)
+    )
+
+
+def queen_is_hanging(board, move):
+
+    test_board = board.copy()
+    test_board.push(move)
+
+    queen_square = test_board.king(not board.turn)
+
+    # Chercher la dame du bot
+    queens = test_board.pieces(chess.QUEEN, board.turn)
+
+    for square in queens:
+        if test_board.is_attacked_by(not board.turn, square):
+            return True
+
+    return False
 
 
 def move_penalty(board, move):
@@ -77,23 +114,9 @@ def move_penalty(board, move):
         else:
             captured_value = 0
 
-        # Éviter de capturer !
         penalty += captured_value * 10
 
-    # Promotions : une très mauvaise idée
-    if move.promotion:
-        penalty += 1000
-
     return penalty
-
-
-def avoids_checkmate(board, move):
-
-    test_board = board.copy()
-    test_board.push(move)
-
-    # Ne jamais donner échec et mat
-    return not test_board.is_checkmate()
 
 
 def choose_move(board):
@@ -103,15 +126,48 @@ def choose_move(board):
     if not legal_moves:
         return None
 
-    # Éviter de mater l'adversaire
-    candidates = [
-        move for move in legal_moves
-        if avoids_checkmate(board, move)
-    ]
+    candidates = []
 
-    # Si tous les coups donnent mat, jouer un coup légal
+    for move in legal_moves:
+
+        test_board = board.copy()
+        test_board.push(move)
+
+        # Interdiction de mater
+        if test_board.is_checkmate():
+            continue
+
+        candidates.append(move)
+
     if not candidates:
-        candidates = legal_moves
+        return None
+
+    # Compter les coups déjà joués par le bot
+    bot_moves = sum(
+        1 for move in board.move_stack
+        if board.color_at(move.from_square) == board.turn
+    )
+
+    # TROISIÈME COUP : SACRIFIER LA DAME
+    if bot_moves == 2:
+
+        queen_moves = [
+            move for move in candidates
+            if is_queen_sacrifice(board, move)
+        ]
+
+        if queen_moves:
+
+            # Choisir un déplacement de dame qui la rend vulnérable
+            random.shuffle(queen_moves)
+
+            for move in queen_moves:
+                if queen_is_hanging(board, move):
+                    print("BLUNDERBOT: QUEEN SACRIFICE!")
+                    return move
+
+            print("BLUNDERBOT: QUEEN SACRIFICE ATTEMPT!")
+            return random.choice(queen_moves)
 
     scored_moves = []
 
@@ -124,7 +180,11 @@ def choose_move(board):
 
         score -= move_penalty(board, move)
 
-        # Petite dose de chaos
+        # PROMOTION : TOUJOURS CAVALIER
+        if move.promotion == chess.KNIGHT:
+            score -= 5000
+
+        # PETITE DOSE DE CHAOS
         score += random.randint(-100, 100)
 
         scored_moves.append((score, move))
@@ -132,12 +192,31 @@ def choose_move(board):
     # Choisir volontairement le pire coup
     scored_moves.sort(key=lambda x: x[0])
 
-    # Privilégier les coups catastrophiques
     worst_moves = scored_moves[:max(1, len(scored_moves) // 3)]
 
     return random.choice(worst_moves)[1]
 
 
+def play_bot_move(board):
+
+    move = choose_move(board)
+
+    if move is None:
+        return False
+
+    # Dernière protection anti-mat
+    test_board = board.copy()
+    test_board.push(move)
+
+    if test_board.is_checkmate():
+        print("BLUNDERBOT REFUSES TO CHECKMATE!")
+        return False
+
+    board.push(move)
+
+    print("BLUNDERBOT PLAYS:", move)
+
+    return True
 
 
 # ==========================================
@@ -148,35 +227,36 @@ if __name__ == "__main__":
 
     board = chess.Board()
 
-    print("BLUNDERBOT ACTIVATED")
-    print("Playing chess as badly as possible...")
+    print("================================")
+    print("       BLUNDERBOT ACTIVATED")
+    print("================================")
+    print("Knights: EDGES ONLY")
+    print("Queen: SACRIFICE ON MOVE 3")
+    print("Promotions: KNIGHTS ONLY")
+    print("Checkmate: FORBIDDEN")
     print()
 
     while not board.is_game_over():
 
         if board.turn == chess.WHITE:
 
-            move = choose_move(board)
-
-            if move is None:
+            if not play_bot_move(board):
                 break
-
-            print("BlunderBot plays:", move)
-
-            board.push(move)
 
         else:
 
-            # Adversaire aléatoire pour les tests
             move = random.choice(list(board.legal_moves))
 
-            print("Opponent plays:", move)
+            print("OPPONENT PLAYS:", move)
 
             board.push(move)
 
         print(board)
         print()
 
+    print("================================")
     print("GAME OVER")
     print("Result:", board.result())
-    print("Reason:", board.outcome().termination.name)
+    print("Reason:", board.outcome().termination.name
+          if board.outcome() else "Bot stopped")
+    print("================================")
