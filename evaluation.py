@@ -7,7 +7,7 @@ VALUES = {
     chess.KNIGHT: 320,
     chess.BISHOP: 330,
     chess.ROOK: 500,
-    chess.QUEEN: 900,
+    chess.QUEEN: 1,
     chess.KING: 20000
 }
 
