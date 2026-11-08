@@ -1,4 +1,3 @@
-
 import chess
 import sys
 import time
@@ -174,8 +173,8 @@ def uci_loop():
         command = parts[0]
 
         if command == "uci":
-            print("id name Blunder-Engine")
-            print("id author BlunderBot Team")
+            print("id name BlunderFish")
+            print("id author secret")
             print("uciok", flush=True)
 
         elif command == "isready":
